@@ -345,6 +345,29 @@ static GstFlowReturn gst_cef_src_create(GstPushSrc *push_src, GstBuffer **buf)
   return GST_FLOW_OK;
 }
 
+static gpointer
+keypress_cef (GstBaseSrc *base_src)
+{
+	GstCefSrc *src = GST_CEF_SRC (base_src);
+	sleep(5);
+	while (true)
+	{
+		CefKeyEvent kEvent;
+		kEvent.windows_key_code = 39;
+		kEvent.type = KEYEVENT_RAWKEYDOWN;
+		src->browser->GetHost()->SendKeyEvent(kEvent);
+                kEvent.type = KEYEVENT_CHAR;
+                src->browser->GetHost()->SendKeyEvent(kEvent);
+		sleep(2);
+		kEvent.windows_key_code = 40;
+                kEvent.type = KEYEVENT_RAWKEYDOWN;
+                src->browser->GetHost()->SendKeyEvent(kEvent);
+                kEvent.type = KEYEVENT_CHAR;
+                src->browser->GetHost()->SendKeyEvent(kEvent);
+		sleep(2);
+	}
+}
+
 /* Once we have started a first cefsrc for this process, we start
  * a UI thread and never shut it down. We could probably refine this
  * to stop and restart the thread as needed, but this updated approach
@@ -468,6 +491,8 @@ gst_cef_src_start(GstBaseSrc *base_src)
   GST_OBJECT_LOCK (src);
   src->n_frames = 0;
   GST_OBJECT_UNLOCK (src);
+
+  g_thread_new("cef-keypress-thread", (GThreadFunc) keypress_cef, base_src);
 
   browserClient = new BrowserClient(renderHandler, audioHandler, requestHandler, src);
   CefPostTask(TID_UI, base::Bind(&BrowserClient::MakeBrowser, browserClient.get(), 0));
