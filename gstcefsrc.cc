@@ -304,9 +304,11 @@ class App : public CefApp
   {
     command_line->AppendSwitchWithValue("autoplay-policy", "no-user-gesture-required");
     command_line->AppendSwitch("enable-media-stream");
-    command_line->AppendSwitch("disable-gpu");
+//    command_line->AppendSwitch("disable-gpu");
     command_line->AppendSwitch("disable-dev-shm-usage"); /* https://github.com/GoogleChrome/puppeteer/issues/1834 */
-    command_line->AppendSwitch("disable-gpu-compositing");
+//    command_line->AppendSwitch("disable-gpu-compositing");
+    command_line->AppendSwitch("enable-shared-texture");
+    command_line->AppendSwitch("off-screen-rendering-enabled");
   }
 
  private:
@@ -345,7 +347,7 @@ static GstFlowReturn gst_cef_src_create(GstPushSrc *push_src, GstBuffer **buf)
   return GST_FLOW_OK;
 }
 
-static gpointer
+/*static gpointer
 keypress_cef (GstBaseSrc *base_src)
 {
 	GstCefSrc *src = GST_CEF_SRC (base_src);
@@ -366,7 +368,7 @@ keypress_cef (GstBaseSrc *base_src)
                 src->browser->GetHost()->SendKeyEvent(kEvent);
 		sleep(2);
 	}
-}
+}*/
 
 /* Once we have started a first cefsrc for this process, we start
  * a UI thread and never shut it down. We could probably refine this
@@ -492,7 +494,7 @@ gst_cef_src_start(GstBaseSrc *base_src)
   src->n_frames = 0;
   GST_OBJECT_UNLOCK (src);
 
-  g_thread_new("cef-keypress-thread", (GThreadFunc) keypress_cef, base_src);
+  //g_thread_new("cef-keypress-thread", (GThreadFunc) keypress_cef, base_src);
 
   browserClient = new BrowserClient(renderHandler, audioHandler, requestHandler, src);
   CefPostTask(TID_UI, base::Bind(&BrowserClient::MakeBrowser, browserClient.get(), 0));
@@ -669,10 +671,52 @@ gst_cef_src_finalize (GObject *object)
   g_mutex_clear(&src->state_lock);
 }
 
+void handle_key_event(GstCefSrc *src, guint key){
+  CefKeyEvent kEvent;
+  kEvent.windows_key_code = key;
+  kEvent.type = KEYEVENT_RAWKEYDOWN;
+  src->browser->GetHost()->SendKeyEvent(kEvent);
+  kEvent.type = KEYEVENT_CHAR;
+  src->browser->GetHost()->SendKeyEvent(kEvent);
+}
+
+static gboolean
+gst_my_cef_src_event(GstPad *pad,
+  GstObject *object,
+  GstEvent *event)
+  {
+    gboolean ret = TRUE;
+    GstCefSrc *src = GST_CEF_SRC (object);
+    switch (GST_EVENT_TYPE (event)) {
+      case GST_EVENT_NAVIGATION :
+      {
+        /* we should handle the format here */
+        /* push the event downstream */
+        GST_ERROR  ("Got Navigation Event");
+        const GstStructure * nav = gst_event_get_structure(event);
+        guint key = 0;
+        if (gst_structure_get_uint (nav,"Key", &key) == TRUE)
+	        handle_key_event(src, key);
+	GST_ERROR("Keycode %d", key);
+      }
+
+        break;
+      
+      default:
+        /* just call the default handler */
+        GST_INFO  ("Got unhandle event");
+      break;
+      }
+    return ret;
+}
+
 static void
 gst_cef_src_init (GstCefSrc * src)
 {
   GstBaseSrc *base_src = GST_BASE_SRC (src);
+
+  GstPad* src_pad = GST_BASE_SRC_PAD (src);
+  gst_pad_set_event_function(src_pad, gst_my_cef_src_event);
 
   src->n_frames = 0;
   src->current_buffer = NULL;
