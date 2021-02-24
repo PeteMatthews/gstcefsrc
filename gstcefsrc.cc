@@ -502,7 +502,7 @@ run_cef (gpointer unused)
 
   settings.no_sandbox = true;
   settings.windowless_rendering_enabled = true;
-  settings.log_severity = LOGSEVERITY_VERBOSE;
+  settings.log_severity = LOGSEVERITY_DISABLE;
 
   GST_INFO  ("Initializing CEF");
 
