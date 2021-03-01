@@ -455,7 +455,7 @@ static GstFlowReturn gst_cef_src_create(GstPushSrc *push_src, GstBuffer **buf)
   return GST_FLOW_OK;
 }
 
-/*static gpointer
+static gpointer
 keypress_cef (GstBaseSrc *base_src)
 {
 	GstCefSrc *src = GST_CEF_SRC (base_src);
@@ -476,7 +476,7 @@ keypress_cef (GstBaseSrc *base_src)
                 src->browser->GetHost()->SendKeyEvent(kEvent);
 		sleep(2);
 	}
-}*/
+}
 
 /* Once we have started a first cefsrc for this process, we start
  * a UI thread and never shut it down. We could probably refine this
@@ -614,7 +614,7 @@ gst_cef_src_start(GstBaseSrc *base_src)
   src->n_frames = 0;
   GST_OBJECT_UNLOCK (src);
 
-  //g_thread_new("cef-keypress-thread", (GThreadFunc) keypress_cef, base_src);
+  g_thread_new("cef-keypress-thread", (GThreadFunc) keypress_cef, base_src);
 
   browserClient = new BrowserClient(renderHandler, audioHandler, requestHandler, src);
 
